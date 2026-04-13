@@ -1,0 +1,3 @@
+paths:
+  nako_dir: /nfs/data/nii/data0/GNC/GNC_759
+  nnUNet_dir: /nfs/data/nii/data0/GNC/Analysis/GNC_759/ANALYSIS_whole_body_benchmark/nnUNet/
