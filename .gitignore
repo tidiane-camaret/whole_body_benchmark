@@ -1,2 +1,3 @@
 *.egg-info
 .claude/.nfs000000000080249e000016d4
+*-checkpoint.ipynb
