@@ -29,6 +29,7 @@ from patchwork2.customLayers import *
 from patchwork2.improc_utils import *
 import patchwork2.model as patchwork
 
+
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
 
 config_dir = str(Path(__file__).resolve().parent.parent.parent / "configs")
@@ -158,14 +159,21 @@ def estimate_total_flops(themodel, branch_factor, repetitions):
         bf.append(bf[-1])
 
     patch_size = [32, 32, 32]          # as configured
-    n_channels = 2                     # after crop_fdim=[2,3]
 
     total_flops = 0
     patches_at_level = 1
     block_flops_list = []
     for lvl, block in enumerate(themodel.blocks):
         n_patches = patches_at_level * repetitions
-        f = block_flops(block, patch_size + [n_channels])
+        # Read actual input channels from the first Conv3D kernel in the block.
+        # Level 0 gets raw image channels (2); deeper levels receive the image
+        # concatenated with the coarser prediction and intermediate features,
+        # so their first-layer kernel has a larger in_channels dimension (e.g. 36).
+        n_ch = next(
+            (int(v.shape[-2]) for v in block.variables if len(v.shape) == 5),
+            2,   # fallback if no Conv3D found
+        )
+        f = block_flops(block, patch_size + [n_ch])
         block_flops_list.append({"level": lvl, "block_flops": f, "n_patches": n_patches})
         if f is not None:
             total_flops += f * n_patches

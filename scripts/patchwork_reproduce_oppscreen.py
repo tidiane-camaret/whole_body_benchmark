@@ -4,7 +4,6 @@ Standalone reproduction of the "oppscreen" patchwork 3D training job.
 Subjects and paths are resolved from the project Hydra config + splits file.
 """
 
-
 import sys
 import os
 import json
@@ -12,9 +11,11 @@ import math
 import gc
 from pathlib import Path
 from glob import glob
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-#sys.path.insert(0, "/software")
-sys.path.insert(0, "/nfs/norasys/notebooks/camaret/repos/patchwork")
+sys.path.insert(0, "/software")
+import numpy as np
+import nibabel as nib
 
 from hydra import compose, initialize_config_dir
 from omegaconf import OmegaConf
@@ -37,11 +38,13 @@ with open(splits_path) as f:
 subjects_train = splits["train"]
 subjects_test  = splits["test"]
 
-MODEL_DIR = str(Path(cfg.paths.results_dir) / "patchwork" / "subsetFW")
+MODEL_DIR  = str(Path(cfg.paths.results_dir) / "patchwork" / "subsetFW")
+CACHE_DIR  = Path(cfg.paths.results_dir) / "patchwork" / "cache_ch23"
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # ─── RESOLVE FILE PATHS ────────────────────────────────────────────────────────
 
-def resolve_subject(sid, split_label):
+def _find_subject(sid, split_label):
     img_matches = sorted(glob(str(img_base / sid / img_glob)))
     mask_path   = mask_base / sid / mask_rel
     if not img_matches:
@@ -50,29 +53,79 @@ def resolve_subject(sid, split_label):
     if not mask_path.exists():
         print(f"  [SKIP {split_label}] {sid}: mask not found at {mask_path}")
         return None, None
-    return str(img_matches[0]), str(mask_path)   # "take first match"
+    return img_matches[0], str(mask_path)
 
-INPUT_FILES, TARGET_FILES, SUBJECT_IDS, VALIDATION_IDS = [], [], [], []
+
+def _cache_one(sid, src):
+    """Extract channels 2-3 from a 4D Dixon NIfTI and save as a 2-ch int16 file.
+
+    The saved file is half the size of the original (2 ch vs 4 ch at the same
+    int16 dtype), which halves per-subject NFS I/O during training.
+    Scale/intercept headers are preserved so get_fdata() is unaffected.
+    """
+    dst = CACHE_DIR / f"{sid}.nii"
+    if dst.exists():
+        return str(dst)
+    img  = nib.load(src)
+    # dataobj[..., 2:4] reads only channels 2-3 from disk (contiguous in
+    # Fortran-order NIfTI), keeping dtype as int16.
+    if len(img.shape) == 4 and img.shape[3] > 3:
+        data = np.asarray(img.dataobj[..., 2:4])
+    else:
+        data = np.asarray(img.dataobj)
+    hdr = img.header.copy()
+    hdr.set_data_shape(data.shape)
+    hdr.set_data_dtype(data.dtype)
+    nib.save(nib.Nifti1Image(data, img.affine, hdr), dst)
+    return str(dst)
+
+
+def _pre_cache(sid_src_pairs, workers=8):
+    """Cache all subjects in parallel; return {sid: cached_path}."""
+    cached = {sid: str(CACHE_DIR / f"{sid}.nii")
+              for sid, _ in sid_src_pairs
+              if (CACHE_DIR / f"{sid}.nii").exists()}
+    todo   = [(sid, src) for sid, src in sid_src_pairs if sid not in cached]
+    if todo:
+        print(f"Pre-caching {len(todo)}/{len(sid_src_pairs)} subjects "
+              f"→ {CACHE_DIR}  ({workers} threads)")
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            futs = {ex.submit(_cache_one, sid, src): sid for sid, src in todo}
+            for i, fut in enumerate(as_completed(futs), 1):
+                cached[futs[fut]] = fut.result()
+                print(f"\r  cached {i}/{len(todo)}", end="", flush=True)
+        print()
+    else:
+        print(f"All {len(sid_src_pairs)} subjects already cached.")
+    return cached
+
+
+# find raw source paths
+raw_imgs, mask_paths, ordered_sids, VALIDATION_IDS = {}, {}, [], []
 
 for sid in subjects_train:
-    img, mask = resolve_subject(sid, "train")
-    if img is not None:
-        INPUT_FILES.append(img)
-        TARGET_FILES.append(mask)
-        SUBJECT_IDS.append(sid)
+    src, mask = _find_subject(sid, "train")
+    if src:
+        raw_imgs[sid] = src;  mask_paths[sid] = mask
+        ordered_sids.append(sid)
 
 for sid in subjects_test:
-    img, mask = resolve_subject(sid, "test")
-    if img is not None:
-        INPUT_FILES.append(img)
-        TARGET_FILES.append(mask)
-        SUBJECT_IDS.append(sid)
+    src, mask = _find_subject(sid, "test")
+    if src:
+        raw_imgs[sid] = src;  mask_paths[sid] = mask
+        ordered_sids.append(sid)
         VALIDATION_IDS.append(sid)
 
-print(f"Training subjects : {len(subjects_train)} requested, "
-      f"{len(SUBJECT_IDS) - len(VALIDATION_IDS)} resolved")
-print(f"Validation subjects: {len(subjects_test)} requested, "
-      f"{len(VALIDATION_IDS)} resolved")
+n_train = len(ordered_sids) - len(VALIDATION_IDS)
+print(f"Training subjects : {len(subjects_train)} requested, {n_train} resolved")
+print(f"Validation subjects: {len(subjects_test)} requested, {len(VALIDATION_IDS)} resolved")
+
+# pre-cache (extracts channels 2-3, halves per-subject NFS reads)
+cached_imgs = _pre_cache([(sid, raw_imgs[sid]) for sid in ordered_sids])
+
+INPUT_FILES  = [cached_imgs[sid] for sid in ordered_sids]
+TARGET_FILES = [mask_paths[sid]  for sid in ordered_sids]
+SUBJECT_IDS  = ordered_sids
 
 # ─── PATCHWORK LIBRARY PATH ────────────────────────────────────────────────────
 # Adjust if patchwork2 is not already on sys.path
@@ -144,7 +197,7 @@ network = {
 
 loading = {
     "nD":                       nD,
-    "crop_fdim":                [2, 3],   # keep only channels 2 and 3 of input
+    "crop_fdim":                None,     # cache already contains channels 2-3 only
     "crop_fdim_labels":         None,
     "crop_only_nonzero":        False,
     "threshold":                None,     # overridden by integer_labels
