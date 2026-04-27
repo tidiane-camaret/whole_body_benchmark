@@ -36,7 +36,7 @@ img_glob  = "30/3D_GRE_TRA_4/3D_GRE_TRA_W_COMPOSE*_s*.nii"
 mask_rel  = "30/opportunistic-screening/seg.nii.gz"
 
 # ── Splits ───────────────────────────────────────────────────────────────────
-splits_path = Path(cfg.paths.results_dir) / "splits.json"
+splits_path = Path(cfg.paths.data_dir) / "splits_966.json"
 with open(splits_path) as f:
     splits = json.load(f)
 subjects_train, subjects_test = splits["train"], splits["test"]
@@ -90,7 +90,7 @@ valid_ids   = list(range(len(subjects_train), len(valid)))
 # ── Experiment config ─────────────────────────────────────────────────────────
 nD = 3
 
-MODEL_PATH = "/nfs/data/nii/data0/GNC/Analysis/GNC_759/ANALYSIS_whole_body_benchmark/results/patchwork/whole_body_oppscreen_v3"
+MODEL_PATH = "/nfs/data/nii/data0/GNC/Analysis/GNC_759/ANALYSIS_whole_body_benchmark/results/patchwork/whole_body_oppscreen_v4"
 os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
 
 patching = {
@@ -134,7 +134,7 @@ training = {
 
 outer_its      = 100
 # NOTE: validation tag "mjvalset" — filter subjects if a tag file is available.
-samples_per_it = 10
+samples_per_it = 70
 
 # ── Data loader ───────────────────────────────────────────────────────────────
 def get_data(subjects_subset=None, n=None):
