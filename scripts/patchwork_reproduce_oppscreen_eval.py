@@ -32,7 +32,8 @@ import patchwork2.model as patchwork
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
 
-config_dir = str(Path(__file__).resolve().parent.parent.parent / "configs")
+#config_dir = str(Path(__file__).resolve().parent.parent.parent / "configs")
+config_dir = str(Path(__file__).resolve().parent.parent / "configs")
 with initialize_config_dir(config_dir=config_dir, version_base=None):
     cfg = compose(config_name="config")
 
@@ -46,8 +47,8 @@ with open(splits_path) as f:
     splits = json.load(f)
 subjects_val = splits["test"]
 
-#MODEL_DIR   = Path(cfg.paths.results_dir) / "patchwork" / "subsetFW"
-MODEL_DIR = Path("/nfs/data/nii/data0/GNC/Analysis/GNC_759/ANALYSIS_wholebody/whole_body_benchmark")
+MODEL_DIR   = Path(cfg.paths.results_dir) / "patchwork" / "subsetFW"
+#MODEL_DIR = Path("/nfs/data/nii/data0/GNC/Analysis/GNC_759/ANALYSIS_wholebody/whole_body_benchmark")
 PRED_DIR    = Path(cfg.paths.results_dir) / "patchwork" / "predictions"
 METRICS_DIR = Path(cfg.paths.results_dir) / "patchwork" / "metrics"
 PRED_DIR.mkdir(parents=True, exist_ok=True)
@@ -69,7 +70,7 @@ APPLY_PARAMS = dict(
     crop_fdim         = [2, 3],
     repetitions       = 4,
     num_chunks        = 20,
-    scale_to_original = False,
+    scale_to_original = True,
     branch_factor     = [4, 4, 8],
     out_typ           = "atls",
     level             = "mix",
@@ -246,7 +247,9 @@ for sid in subjects_val:
 
     gt_arr   = np.asarray(gt_nib.dataobj,   dtype=np.int16)
     pred_arr = np.asarray(pred_nib.dataobj, dtype=np.int16)
-    spacing  = np.abs(np.diag(pred_nib.affine)[:3])   # mm/voxel from affine
+    if pred_arr.ndim == 4:          # atls out_typ saves [label, prob] on last axis
+        pred_arr = pred_arr[..., 0]
+    spacing  = np.abs(np.diag(gt_nib.affine)[:3])   # mm/voxel from GT affine
 
     rows = metrics_for_subject(pred_arr, gt_arr, spacing)
     for r in rows:

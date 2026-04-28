@@ -3,3 +3,4 @@ paths:
   nnUNet_dir: /nfs/data/nii/data0/GNC/Analysis/GNC_759/ANALYSIS_whole_body_benchmark/nnUNet/
   results_dir: /nfs/data/nii/data0/GNC/Analysis/GNC_759/ANALYSIS_whole_body_benchmark/results/
   data_dir: /nfs/data/nii/data0/GNC/Analysis/GNC_759/ANALYSIS_whole_body_benchmark/data/
+  oppscreen_dir: /nfs/data/nii/data1/Analysis/camaret___whole_body_benchmark/ANALYSIS_ana001/data/oppscreen/
