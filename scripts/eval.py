@@ -17,7 +17,7 @@ python scripts/eval.py \
     --gt-pattern   /nfs/data/nii/data0/GNC/GNC_759/data/{subject}/30/opportunistic-screening/seg.nii.gz \
     --pred-pattern /nfs/data/nii/data0/GNC/GNC_759/data/{subject}/30/wholebody/subsetFW.nii.gz \
     --subjects     /nfs/data/nii/data1/Analysis/camaret___whole_body_benchmark/ANALYSIS_ana001/data/oppscreen/splits_966.json --splits-key test \
-    --output       results/results_patchwork.json
+    --output       results/results_patchwork_original.json
 
 
   # Patchwork (our preds)

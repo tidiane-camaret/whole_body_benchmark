@@ -3,3 +3,5 @@
 *-checkpoint.ipynb
 .claude/.nfs000000000091e440000016e4
 results/*.json
+*.pyc
+plots/*.png
