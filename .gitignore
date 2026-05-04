@@ -2,3 +2,4 @@
 .claude/.nfs000000000080249e000016d4
 *-checkpoint.ipynb
 .claude/.nfs000000000091e440000016e4
+results/*.json
