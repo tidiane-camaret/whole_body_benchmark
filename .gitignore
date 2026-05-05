@@ -5,3 +5,4 @@
 results/*.json
 *.pyc
 plots/*.png
+experiments/patchwork_train_closer_to_nnunet copy_files/*.png

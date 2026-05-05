@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//software/notebooks/camaret/repos/patchwork/patchwork/**)",
+      "Read(//software/notebooks/camaret/repos/patchwork/tests/**)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(list\\(d.keys\\(\\)\\)\\); labels=d.get\\('labels',{}\\); [print\\(k,v\\) for k,v in labels.items\\(\\)]\")",
+      "Bash(python3 *)",
+      "Bash(conda run -n segfm3d_2 python -c ' *)",
+      "Read(//nfs/data/nii/data0/GNC/ANALYSIS_whole_body_benchmark/patchwork/**)",
+      "Read(//nfs/data/nii/data0/GNC/Analysis/GNC_759/ANALYSIS_whole_body_benchmark/**)",
+      "Read(//software/**)"
+    ]
+  }
+}
