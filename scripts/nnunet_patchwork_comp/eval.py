@@ -39,8 +39,8 @@ import nibabel as nib
 from scipy.ndimage import zoom
 from tqdm import tqdm
 
-sys.path.insert(0, str(Path(__file__).parent))
-from compute_metrics import dice, nsd
+sys.path.insert(0, "/home/dpxuser/dev/whole_body_benchmark")
+from src.compute_metrics import dice, nsd
 
 LABEL_MAP = {
     "AT_pelvis": 1,

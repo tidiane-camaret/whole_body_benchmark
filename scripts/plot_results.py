@@ -98,7 +98,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("jsons", nargs="+", help="Results JSON files")
     parser.add_argument("--metric", default="dice", choices=["dice", "nsd"])
-    parser.add_argument("--output", default="plots/results_distribution.png")
+    parser.add_argument("--output", default="results/plots/results_distribution.png")
     args = parser.parse_args()
     plot(args.jsons, args.metric, args.output)
 

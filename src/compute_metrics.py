@@ -1,7 +1,8 @@
 import sys
 import numpy as np
 import nibabel as nib
-from scipy.ndimage import binary_erosion, distance_transform_edt
+import edt
+from scipy.ndimage import binary_erosion
 
 def compute_surface(mask):
     """Surface voxels = mask minus its erosion."""
@@ -24,8 +25,8 @@ def nsd(gt_k, pred_k, voxel_spacing, tolerance_mm=2.0):
         return float("nan")
 
     # distance from every voxel to the surface of the other structure
-    dist_from_gt   = distance_transform_edt(~surf_gt,   sampling=voxel_spacing)
-    dist_from_pred = distance_transform_edt(~surf_pred, sampling=voxel_spacing)
+    dist_from_gt   = edt.edt(~surf_gt,   anisotropy=voxel_spacing)
+    dist_from_pred = edt.edt(~surf_pred, anisotropy=voxel_spacing)
 
     within = (surf_pred & (dist_from_gt   <= tolerance_mm)).sum() \
            + (surf_gt   & (dist_from_pred <= tolerance_mm)).sum()

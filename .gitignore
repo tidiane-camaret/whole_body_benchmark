@@ -6,3 +6,5 @@ results/*.json
 *.pyc
 plots/*.png
 experiments/patchwork_train_closer_to_nnunet copy_files/*.png
+.claude/.nfs0000000000cb1f710000170e
+results/learning_curves/**/*.csv
