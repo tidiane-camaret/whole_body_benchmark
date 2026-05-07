@@ -45,10 +45,15 @@ def load_nnunet_curves(result_dir: Path):
     )
     train_losses = [float(x) for x in re.findall(r"train_loss (-?[0-9.]+)", log_text)]
     val_losses   = [float(x) for x in re.findall(r"val_loss (-?[0-9.]+)", log_text)]
-    dice_rows    = [
-        [float(v) for v in row.split(", ")]
-        for row in re.findall(r"Pseudo dice \[([0-9., ]+)\]", log_text)
-    ]
+    _dice_blocks = re.findall(r"Pseudo dice \[(.+?)\]", log_text)
+    dice_rows = []
+    for block in _dice_blocks:
+        # Handle np.float32(...) format (newer nnUNet) and plain float format
+        np_vals = re.findall(r"np\.float32\(([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)\)", block)
+        if np_vals:
+            dice_rows.append([float(v) for v in np_vals])
+        else:
+            dice_rows.append([float(v) for v in re.findall(r"[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?", block)])
 
     n = min(len(train_losses), len(val_losses), len(dice_rows))
     if n == 0:

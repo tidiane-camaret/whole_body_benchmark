@@ -51,7 +51,7 @@ def main():
     # --- Dice / F1 ---
     ax = axes[0]
     ax.plot(nn_t, nn_dice, label="nnUNet (mean pseudo-dice)", color="steelblue", linewidth=1.5)
-    ax.plot(pw_t, pw_dice, label="Patchwork (mean val F1)",   color="darkorange", linewidth=1.5)
+    ax.plot(pw_t, pw_dice, label="Patchwork (mean val F1)",   color="red", linewidth=1.5)
     ax.set_xlabel("Wall time (h)")
     ax.set_ylabel("Mean Dice / F1")
     ax.set_title("Validation Dice over time")
@@ -62,7 +62,7 @@ def main():
     # --- Loss ---
     ax = axes[1]
     ax.plot(nn_t, nn_loss, label="nnUNet val loss",    color="steelblue", linewidth=1.5)
-    ax.plot(pw_t, pw_loss, label="Patchwork val loss", color="darkorange", linewidth=1.5)
+    ax.plot(pw_t, pw_loss, label="Patchwork val loss", color="red", linewidth=1.5)
     ax.set_xlabel("Wall time (h)")
     ax.set_ylabel("Loss")
     ax.set_title("Validation loss over time\n(different scales — convergence shape only)")

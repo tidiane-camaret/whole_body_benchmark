@@ -27,6 +27,7 @@ Example
 
 import argparse
 import json
+import os
 import re
 from pathlib import Path
 
@@ -70,7 +71,8 @@ def load_patchwork_curves(result_dir: Path):
     # Wall time from trainlog.txt. Each log entry covers one training cycle
     # (N_epochs × step_size patches). Expand each entry into per-checkpoint
     # slots, then pad any remainder with the mean per-checkpoint duration.
-    log_text = (result_dir / "trainlog.txt").read_text()
+    log_path = result_dir / "trainlog.txt"
+    log_text = log_path.read_text()
     elapsed  = [float(x) for x in re.findall(r"time elapsed, fitting: ([0-9.]+)", log_text)]
 
     step_size  = int(train_df.index[1] - train_df.index[0])
@@ -82,6 +84,20 @@ def load_patchwork_curves(result_dir: Path):
     # Expand: each log entry contributes equally to its covered checkpoints
     elapsed_per_step = [t / steps_per_entry for t in elapsed for _ in range(steps_per_entry)]
     mean_step = float(np.mean(elapsed_per_step)) if elapsed_per_step else 0.0
+
+    # 'time elapsed, fitting:' only measures neural-net training time. Validation
+    # over full volumes (run every iteration) is not timed in the log. We recover
+    # total actual wall time from filesystem timestamps: on this NFS mount atime
+    # reflects file creation (training start) and mtime the latest write.
+    st = os.stat(log_path)
+    fs_total_s = st.st_mtime - st.st_atime  # end - start
+    fitting_total_s = sum(elapsed_per_step)
+    if fs_total_s > fitting_total_s * 1.05 and len(elapsed_per_step) > 0:
+        # Scale each per-step fitting time so the cumulative total matches real wall time.
+        # This distributes validation overhead proportionally across iterations.
+        scale = fs_total_s / fitting_total_s
+        elapsed_per_step = [t * scale for t in elapsed_per_step]
+        mean_step *= scale
 
     # Pad to full length if log was truncated
     elapsed_full = elapsed_per_step + [mean_step] * max(0, n_iters - len(elapsed_per_step))
@@ -99,10 +115,13 @@ def load_patchwork_curves(result_dir: Path):
         return df
 
     meta = {
-        "n_iter_logged":    n_logged,
-        "n_iter_total":     n_iters,
-        "mean_iter_s":      mean_step,
-        "steps_per_entry":  steps_per_entry,
+        "n_iter_logged":       n_logged,
+        "n_iter_total":        n_iters,
+        "mean_iter_s":         mean_step,
+        "steps_per_entry":     steps_per_entry,
+        "walltime_source":     "fs_timestamps" if fs_total_s > fitting_total_s * 1.05 else "fitting_only",
+        "fitting_total_h":     fitting_total_s / 3600.0,
+        "fs_total_h":          fs_total_s / 3600.0,
     }
     return (
         add_walltime(train_df),
@@ -132,6 +151,11 @@ def main():
 
     print(f"Wrote 4 CSV files to {out_dir}")
     print(f"  Steps:       {train_df.index[0]} → {train_df.index[-1]}  ({len(train_df)} checkpoints)")
+    src = meta["walltime_source"]
+    if src == "fs_timestamps":
+        print(f"  Wall time source: filesystem timestamps (fitting={meta['fitting_total_h']:.1f}h → scaled to {meta['fs_total_h']:.1f}h total)")
+    else:
+        print(f"  Wall time source: fitting time only (no validation overhead detected)")
     if not valid_df.empty:
         n_extrap = int(valid_df["walltime_extrapolated"].sum())
         extrap_note = (f"  ({n_extrap} checkpoints extrapolated from mean iter "
